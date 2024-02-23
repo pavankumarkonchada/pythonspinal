@@ -1,0 +1,7 @@
+gunicorn==21.2.0
+flask==3.0.2
+numpy==1.26.4
+pandas2==0.0.0
+xgboost==2.0.3
+scikit-learn==1.4.1.post1
+pickle4==0.0.1
