@@ -1,16 +1,16 @@
 from flask import Flask, request, jsonify
 import pandas as pd
 import pickle
-import numpy as np
-import requests
 from sklearn.preprocessing import MinMaxScaler
 import warnings
+import requests
 warnings.filterwarnings('ignore')
+import xgboost as xgb
 
 app = Flask(__name__)
 
-# Function to download the model file
-def download_model(url, local_filename):
+def download_model(url, local_filename='model.pkl'):
+    """Download a file from a URL to a local file."""
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
         with open(local_filename, 'wb') as f:
@@ -18,52 +18,42 @@ def download_model(url, local_filename):
                 f.write(chunk)
     return local_filename
 
-# Download model at the start of the app to avoid repeated downloads
-model_url = "https://raw.githubusercontent.com/pavankumarkonchada/pythonspinal/main/xgboost_multilabel_model.pkl"
-model_path = "xgboost_multilabel_model.pkl"
-download_model(model_url, model_path)
+# URL to the .pkl model file in GitHub (use the raw content URL)
+model_url = "https://github.com/pavankumarkonchada/pythonspinal/raw/main/xgboost_multilabel_model.pkl"
+
+# Download the model file at app startup
+model_path = download_model(model_url)
 
 # Load the trained model using pickle
 with open(model_path, 'rb') as model_file:
     loaded_model = pickle.load(model_file)
 
-# Enable CORS for all routes
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'OPTIONS, POST')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
-@app.route('/process_data', methods=['OPTIONS', 'POST'])
+@app.route('/process_data', methods=['POST'])
 def process_data():
-    if request.method == 'OPTIONS':
-        return '', 200
-    
     try:
         data = request.get_json()
-        received_data = data.get('data', [])
-        # Ensure received_data is a list of dictionaries for DataFrame creation
-        if isinstance(received_data, list) and all(isinstance(item, dict) for item in received_data):
-            df_t = pd.DataFrame(received_data)
-        else:
-            return jsonify({'error': 'Invalid data format. Expecting a list of dictionaries.'})
+        received_data = data.get('data', {})
+        df_t = pd.DataFrame(received_data, index=[0])
 
-        # Convert categories 'a', 'b', 'c' to numeric values 0, 1, 2
         category_to_number = {'a': 0, 'b': 1, 'c': 2}
         for column in df_t.columns:
-            if set(df_t[column].unique()).issubset({'a', 'b', 'c'}):
+            if df_t[column].dtype == 'object' and set(df_t[column].unique()).issubset({'a', 'b', 'c'}):
                 df_t[column] = df_t[column].map(category_to_number)
-        
-        # Normalize the DataFrame
+
         scaler = MinMaxScaler()
         df_t_normalized = pd.DataFrame(scaler.fit_transform(df_t), columns=df_t.columns)
-        
-        # Make predictions
-        prediction_result_df = pd.DataFrame(loaded_model.predict(df_t_normalized))
-        updated_data = prediction_result_df.iloc[0].tolist()
 
-        return jsonify({'message': 'Data processed successfully', 'updatedData': updated_data})
+        prediction = loaded_model.predict(df_t_normalized)
+        prediction_list = prediction.tolist()
+
+        return jsonify({'message': 'Data processed successfully', 'prediction': prediction_list})
     except Exception as e:
         return jsonify({'error': str(e)})
 
