@@ -57,7 +57,7 @@ def process_data():
   
 
     # Specify the path to the trained model
-        model_path = "E:/Projects/IBS/Model/xgboost_multilabel_model.pkl"
+        model_path = "..//xgboost_multilabel_model.pkl"
 
     # Load the trained model using pickle
         with open(model_path, 'rb') as model_file:
