@@ -51,9 +51,9 @@ def process_data():
         df_t_normalized = pd.DataFrame(scaler.fit_transform(df_t), columns=df_t.columns)
 
         prediction = loaded_model.predict(df_t_normalized)
-        updated_data = prediction.tolist()
+        updatedData = prediction.tolist()
 
-        return jsonify({'message': 'Data processed successfully', 'prediction': updated_data})
+        return jsonify({'message': 'Data processed successfully', 'prediction': updatedData})
     except Exception as e:
         return jsonify({'error': str(e)})
 
